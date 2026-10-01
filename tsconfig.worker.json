@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": [
+      "ES2022",
+      "DOM"
+    ],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "allowImportingTsExtensions": true,
+    "types": [
+      "@types/sanitize-html",
+      "node"
+    ]
+  },
+  "include": [
+    "src/worker",
+    ".cloudflare/types/index.d.ts",
+    "src/gmail/gmail.ts"
+  ],
+  "exclude": [
+    "src/worker/**/*.test.ts"
+  ]
+}

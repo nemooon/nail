@@ -1,0 +1,7 @@
+CREATE TABLE IF NOT EXISTS app_state (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE IF NOT EXISTS oauth_flows (state_hash TEXT PRIMARY KEY, verifier TEXT NOT NULL, expires_at INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS sessions (id_hash TEXT PRIMARY KEY, owner_sub TEXT NOT NULL, expires_at INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS oauth_tokens (owner_sub TEXT PRIMARY KEY, refresh_token_encrypted TEXT NOT NULL, scopes TEXT NOT NULL, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE IF NOT EXISTS classifications (message_id TEXT PRIMARY KEY, category TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS sender_rules (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT NOT NULL, category TEXT NOT NULL, subject_contains TEXT, after_ms INTEGER NOT NULL);
+CREATE INDEX IF NOT EXISTS sender_rules_email ON sender_rules(email);

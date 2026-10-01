@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>メール整理・画面案</title>
+  <style>
+    :root { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif; color: #20302b; background: #f5f6f2; }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    button, input, select { font: inherit; }
+    button { cursor: pointer; }
+    .app { min-height: 100vh; display: grid; grid-template-columns: 218px minmax(350px, 1fr) minmax(350px, .9fr); }
+    .sidebar { background: #e9eee8; border-right: 1px solid #d7dfd6; padding: 24px 14px; display: flex; flex-direction: column; gap: 24px; }
+    .brand { padding: 0 12px; font-size: 19px; font-weight: 760; letter-spacing: -.03em; }
+    .brand small { display: block; font-size: 11px; letter-spacing: .04em; color: #66756d; font-weight: 550; margin-top: 4px; }
+    .nav { display: grid; gap: 4px; }
+    .nav button, .mobile-nav button { border: 0; background: transparent; color: #42524a; text-align: left; border-radius: 10px; padding: 11px 12px; font-weight: 620; }
+    .nav button.active, .mobile-nav button.active { background: #fff; color: #14694f; box-shadow: 0 1px 3px #21382a12; }
+    .nav button:hover, .mobile-nav button:hover { background: #ffffffa8; }
+    .sidebar-note { margin: auto 12px 0; color: #6e7a72; font-size: 12px; line-height: 1.5; }
+    .list-pane { min-width: 0; background: #fff; border-right: 1px solid #e5eae4; }
+    .topbar { display: flex; align-items: center; gap: 10px; padding: 20px 24px 12px; }
+    .topbar h1 { margin: 0; font-size: 23px; letter-spacing: -.04em; flex: 1; }
+    .status { font-size: 11px; color: #647269; white-space: nowrap; }
+    .search { margin: 0 24px 18px; display: flex; gap: 8px; }
+    .search input { width: 100%; border: 1px solid #d9e0d9; border-radius: 9px; padding: 10px 12px; background: #fbfcfa; outline-color: #327d65; }
+    .btn { border: 1px solid #d4ded5; border-radius: 9px; background: #fff; color: #275441; padding: 9px 12px; font-size: 13px; font-weight: 650; white-space: nowrap; }
+    .btn:hover { background: #f0f6f1; }
+    .btn:focus-visible, .nav button:focus-visible, .mobile-nav button:focus-visible, .row:focus-visible { outline: 2px solid #227858; outline-offset: 2px; }
+    .btn.primary { background: #176a50; border-color: #176a50; color: white; }
+    .btn.danger { color: #a63e32; }
+    .intro { padding: 0 24px 16px; font-size: 13px; color: #66746c; line-height: 1.5; }
+    .categories { display: flex; gap: 7px; overflow-x: auto; padding: 0 24px 18px; scrollbar-width: thin; }
+    .chip { border: 1px solid #dae4d9; background: #f8faf7; color: #456251; border-radius: 999px; padding: 7px 10px; font-size: 12px; white-space: nowrap; }
+    .chip.active { background: #dff1e6; border-color: #9bc9a9; color: #135b40; font-weight: 700; }
+    .chip b { margin-left: 4px; font-size: 11px; }
+    .section-head { display: flex; align-items: center; justify-content: space-between; border-top: 1px solid #edf0ec; padding: 14px 24px 8px; color: #607067; font-size: 12px; font-weight: 720; }
+    .row { width: 100%; border: 0; border-bottom: 1px solid #edf0ec; background: #fff; text-align: left; display: grid; grid-template-columns: 8px minmax(0, 1fr) auto; gap: 10px; padding: 14px 24px; color: inherit; }
+    .row:hover, .row.selected { background: #f3f8f4; }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: #237c59; margin-top: 7px; }
+    .row.read .dot { background: transparent; }
+    .row-main { min-width: 0; }
+    .row-top { display: flex; gap: 8px; align-items: center; min-width: 0; }
+    .from { font-weight: 720; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .row.read .from, .row.read .subject { font-weight: 550; }
+    .tag { border-radius: 5px; background: #e9f2ed; color: #2b6e4d; padding: 3px 5px; font-size: 10px; white-space: nowrap; }
+    .subject { margin-top: 5px; font-size: 13px; font-weight: 700; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    .preview { color: #7a877d; font-size: 12px; margin-top: 4px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    .date { color: #879188; font-size: 11px; white-space: nowrap; padding-top: 2px; }
+    .empty { padding: 36px 24px; color: #6b786e; line-height: 1.6; }
+    .stack { width: 100%; padding: 15px 24px; background: #fff; border: 0; border-bottom: 1px solid #edf0ec; text-align: left; display: flex; align-items: center; gap: 12px; color: inherit; }
+    .stack:hover, .stack.active { background: #f3f8f4; }
+    .stack-icon { flex: 0 0 36px; height: 36px; display: grid; place-items: center; border-radius: 9px; background: #ecf2e9; color: #377252; font-weight: 750; }
+    .stack-main { min-width: 0; flex: 1; }
+    .stack-main strong { display: block; font-size: 13px; }
+    .stack-main span { display: block; color: #758176; font-size: 12px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; margin-top: 4px; }
+    .count { background: #e4efe6; border-radius: 999px; color: #2b6d45; min-width: 25px; text-align: center; padding: 3px 6px; font-size: 11px; font-weight: 750; }
+    .detail { min-width: 0; padding: 24px 30px 48px; overflow-y: auto; }
+    .detail-empty { display: grid; place-items: center; height: 75vh; color: #87958b; text-align: center; line-height: 1.7; }
+    .detail-head { display: flex; gap: 10px; align-items: flex-start; }
+    .detail-head h2 { margin: 0; flex: 1; font-size: 21px; line-height: 1.4; letter-spacing: -.03em; }
+    .detail-actions { display: flex; flex-wrap: wrap; gap: 7px; margin: 18px 0 22px; }
+    .meta { border-top: 1px solid #dce5dd; border-bottom: 1px solid #dce5dd; padding: 15px 0; color: #627267; font-size: 12px; line-height: 1.8; }
+    .meta strong { color: #2b4635; }
+    .body { line-height: 1.8; font-size: 14px; padding-top: 19px; overflow-wrap: anywhere; }
+    .body h3 { font-size: 18px; margin: 8px 0; }
+    .body p { margin: 10px 0; }
+    .body .notice { border-left: 3px solid #7cba8a; background: #edf6ed; padding: 12px 15px; margin: 18px 0; }
+    .remote { border: 1px dashed #b8c7ba; padding: 25px; color: #65746a; background: #f8faf7; text-align: center; font-size: 12px; border-radius: 9px; }
+    .stack-tools { display: flex; flex-wrap: wrap; gap: 7px; padding: 0 24px 16px; }
+    .stack-tools .btn { font-size: 12px; }
+    .mobile-nav { display: none; }
+    .back { display: none; }
+    dialog { border: 0; border-radius: 14px; padding: 22px; width: min(92vw, 420px); box-shadow: 0 20px 70px #1d392338; }
+    dialog::backdrop { background: #14251a70; }
+    dialog h3 { margin: 0 0 12px; }
+    dialog p { color: #5d6d61; line-height: 1.6; font-size: 13px; }
+    dialog label { display: block; font-size: 13px; margin: 12px 0; }
+    dialog select { width: 100%; padding: 9px; border: 1px solid #cbd8cb; border-radius: 8px; margin-top: 5px; }
+    .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
+    .sample { position: fixed; right: 16px; bottom: 15px; color: #748176; background: #fffdef; border: 1px solid #eee5bf; padding: 5px 9px; border-radius: 7px; font-size: 10px; z-index: 4; }
+    @media (max-width: 1120px) { .app { grid-template-columns: 186px minmax(320px, 1fr) minmax(300px, .9fr); } .detail { padding: 22px; } }
+    @media (max-width: 790px) {
+      .app { display: block; padding-bottom: 62px; }
+      .sidebar { display: none; }
+      .list-pane { border-right: 0; min-height: calc(100vh - 62px); }
+      .detail { display: none; min-height: calc(100vh - 62px); background: #f5f6f2; padding: 18px 20px 80px; }
+      .app.show-detail .list-pane { display: none; }
+      .app.show-detail .detail { display: block; }
+      .topbar { padding: 17px 18px 10px; }
+      .search { margin: 0 18px 15px; }
+      .intro { padding: 0 18px 14px; }
+      .categories { padding: 0 18px 15px; }
+      .section-head { padding: 14px 18px 8px; }
+      .row, .stack { padding-left: 18px; padding-right: 18px; }
+      .stack-tools { padding: 0 18px 14px; }
+      .mobile-nav { display: flex; position: fixed; left: 0; right: 0; bottom: 0; height: 61px; background: #f3f6f0; border-top: 1px solid #d9e1d7; z-index: 3; align-items: center; justify-content: space-around; }
+      .mobile-nav button { font-size: 11px; padding: 7px 9px; text-align: center; }
+      .back { display: inline-block; border: 0; background: transparent; font-size: 14px; font-weight: 700; color: #176a50; padding: 0 8px 0 0; }
+      .sample { bottom: 67px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app" id="app">
+    <aside class="sidebar">
+      <div class="brand">メール整理<small>受信と整理のための画面案</small></div>
+      <nav class="nav" aria-label="主な画面" id="desktop-nav"></nav>
+      <p class="sidebar-note">送信・返信・下書きは Gmail で行います。<br>この画面にはサンプルメールだけを表示しています。</p>
+    </aside>
+    <main class="list-pane" id="list-pane"></main>
+    <section class="detail" id="detail" aria-label="メール詳細"></section>
+    <nav class="mobile-nav" aria-label="主な画面" id="mobile-nav"></nav>
+  </div>
+  <span class="sample">操作できる画面案・サンプルデータ</span>
+  <dialog id="classify-dialog">
+    <h3>分類を修正</h3>
+    <p id="classify-subject"></p>
+    <label>分類先<select id="classify-category"></select></label>
+    <label><input type="radio" name="scope" value="one" checked> この1通だけ</label>
+    <label><input type="radio" name="scope" value="sender"> 同じ送信元の今後にも適用</label>
+    <div class="dialog-actions"><button class="btn" id="classify-cancel">キャンセル</button><button class="btn primary" id="classify-save">保存</button></div>
+  </dialog>
+  <script>
+    const categories = ['クレジット利用速報', '配送通知', 'ショッピング', '契約・サブスク', '予約'];
+    const items = [
+      { id: 1, from: '北星カード', email: 'notice@hokusei.example', subject: 'カードご利用のお知らせ', preview: '9月29日 8:42 のご利用をお知らせします。', date: '今日 8:42', category: categories[0], unread: true, inbox: true, html: '<h3>ご利用のお知らせ</h3><p>9月29日にカードをご利用いただきました。</p><div class="notice">ご利用金額　3,280円<br>ご利用先　サンプル書店</div><p>お心当たりのない場合は公式サイトからご確認ください。</p>' },
+      { id: 2, from: '青空トラベル', email: 'booking@aozora.example', subject: 'ご予約が確定しました', preview: '10月12日の宿泊予約が確定しました。', date: '昨日 19:10', category: categories[4], unread: true, inbox: true, html: '<h3>宿泊のご予約</h3><p>10月12日のご予約が確定しました。</p><div class="notice">チェックイン　10月12日 15:00<br>予約番号　EX-1248</div><div class="remote">外部画像は読み込んでいません<br><button class="btn remote-button" type="button">画像を表示</button></div>' },
+      { id: 3, from: 'はこび便', email: 'delivery@hakobi.example', subject: 'お荷物のお届け予定', preview: '明日のお届けを予定しています。', date: '昨日 11:30', category: categories[1], unread: false, inbox: true, html: '<h3>お届け予定</h3><p>明日、お荷物をお届けする予定です。</p><div class="notice">配達予定　9月30日 14:00–16:00</div>' },
+      { id: 4, from: '紙風船ストア', email: 'orders@kamifusen.example', subject: 'ご注文を受け付けました', preview: 'ご注文ありがとうございます。', date: '9月27日', category: categories[2], unread: false, inbox: true, html: '<h3>ご注文ありがとうございます</h3><p>ご注文を受け付けました。発送時に改めてご連絡します。</p>' },
+      { id: 5, from: '音の庭', email: 'billing@otononiwa.example', subject: '次回ご請求のご案内', preview: '来月のご請求についてご案内します。', date: '9月26日', category: categories[3], unread: false, inbox: true, html: '<h3>次回ご請求のご案内</h3><p>次回のご請求は10月5日を予定しています。</p>' },
+      { id: 6, from: '紙風船ストア', email: 'news@kamifusen.example', subject: '秋のおすすめ商品', preview: '今週のおすすめをお届けします。', date: '9月25日', category: 'プロモーション', unread: true, inbox: true, html: '<h3>秋のおすすめ</h3><p>今週のおすすめ商品をご紹介します。</p>' },
+      { id: 7, from: '紙風船ストア', email: 'news@kamifusen.example', subject: '今週の新着アイテム', preview: '新しい商品が入荷しました。', date: '9月22日', category: 'プロモーション', unread: false, inbox: true, html: '<h3>今週の新着アイテム</h3><p>新しい商品が入荷しました。</p>' },
+      { id: 8, from: '街角ニュース', email: 'newsletter@machikado.example', subject: '今週の読みもの', preview: '気になる記事をお届けします。', date: '9月21日', category: 'プロモーション', unread: true, inbox: true, html: '<h3>今週の読みもの</h3><p>今週の記事をまとめました。</p>' },
+      { id: 9, from: '友人からのお知らせ', email: 'hello@friend.example', subject: '週末の予定について', preview: '土曜日の件、また連絡します。', date: '9月20日', category: '', unread: false, inbox: true, html: '<p>土曜日の件、また連絡します。</p>' },
+      { id: 10, from: '青空トラベル', email: 'booking@aozora.example', subject: '以前のご予約内容', preview: '以前の宿泊記録です。', date: '8月15日', category: categories[4], unread: false, inbox: false, html: '<h3>以前のご予約</h3><p>このメールはアーカイブ済みです。</p>' }
+    ];
+    const names = { important: '重要な通知', inbox: '受信箱', promotions: 'プロモーション', archive: 'アーカイブ', trash: 'ゴミ箱' };
+    const state = { view: 'important', selected: 1, category: '', stack: '', query: '', updated: 'たった今' };
+    const app = document.getElementById('app');
+    const listPane = document.getElementById('list-pane');
+    const detail = document.getElementById('detail');
+    const dialog = document.getElementById('classify-dialog');
+    const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    function nav() {
+      const entries = Object.entries(names);
+      document.getElementById('desktop-nav').innerHTML = entries.map(([key, name]) => `<button data-view="${key}" class="${state.view === key ? 'active' : ''}">${name}</button>`).join('');
+      document.getElementById('mobile-nav').innerHTML = entries.map(([key, name]) => `<button data-view="${key}" class="${state.view === key ? 'active' : ''}">${name}</button>`).join('');
+      document.querySelectorAll('[data-view]').forEach(button => button.onclick = () => { state.view = button.dataset.view; state.category = ''; state.stack = ''; state.selected = null; state.query = ''; app.classList.remove('show-detail'); render(); });
+    }
+    function visibleItems() {
+      let found = items.filter(m => state.view === 'archive' ? !m.inbox && !m.trashed : state.view === 'trash' ? !!m.trashed : m.inbox && !m.trashed);
+      if (state.view === 'important') found = found.filter(m => categories.includes(m.category) && (!state.category || m.category === state.category));
+      if (state.view === 'promotions') found = found.filter(m => m.category === 'プロモーション' && (!state.stack || m.email === state.stack));
+      if (state.query) { const q = state.query.toLowerCase(); found = items.filter(m => !m.trashed && [m.from, m.subject, m.preview].some(v => v.toLowerCase().includes(q))); }
+      return found;
+    }
+    function rows(found) {
+      return found.length ? found.map(m => `<button class="row ${m.unread ? '' : 'read'} ${state.selected === m.id ? 'selected' : ''}" data-id="${m.id}"><span class="dot" aria-hidden="true"></span><span class="row-main"><span class="row-top"><span class="from">${esc(m.from)}</span>${m.category && m.category !== 'プロモーション' ? `<span class="tag">${esc(m.category)}</span>` : ''}</span><span class="subject">${esc(m.subject)}</span><span class="preview">${esc(m.preview)}</span></span><span class="date">${esc(m.date)}</span></button>`).join('') : '<p class="empty">この条件のメールはありません。</p>';
+    }
+    function renderList() {
+      const found = visibleItems();
+      const unseen = category => items.filter(m => m.inbox && !m.trashed && m.category === category && m.unread).length;
+      const chips = state.view === 'important' && !state.query ? `<div class="categories"><button class="chip ${!state.category ? 'active' : ''}" data-category="">すべて</button>${categories.map(c => `<button class="chip ${state.category === c ? 'active' : ''}" data-category="${esc(c)}">${esc(c)}<b>${unseen(c) || ''}</b></button>`).join('')}</div>` : '';
+      const stacks = [...new Set(items.filter(m => m.inbox && !m.trashed && m.category === 'プロモーション').map(m => m.email))];
+      const stackList = state.view === 'promotions' && !state.stack && !state.query ? stacks.map(email => { const group = items.filter(m => m.email === email && m.inbox && !m.trashed && m.category === 'プロモーション'); return `<button class="stack" data-stack="${esc(email)}"><span class="stack-icon">${esc(group[0].from.slice(0, 1))}</span><span class="stack-main"><strong>${esc(group[0].from)}</strong><span>${esc(group[0].subject)} · ${group.length}通</span></span><span class="count">${group.filter(m => m.unread).length}</span></button>`; }).join('') : '';
+      const stackTools = state.view === 'promotions' && state.stack && !state.query ? `<div class="stack-tools"><button class="btn" id="stack-back">← スタック一覧</button><button class="btn" data-bulk="read">まとめて既読</button><button class="btn" data-bulk="archive">まとめてアーカイブ</button><button class="btn danger" data-bulk="trash">まとめてゴミ箱へ</button></div>` : '';
+      const heading = state.query ? '検索結果' : state.stack ? (items.find(m => m.email === state.stack)?.from || 'スタック') : names[state.view];
+      const intro = state.view === 'important' ? '受信箱に残っている重要な通知。既読もアーカイブするまでは表示します。' : state.view === 'promotions' ? '広告は送信元ごとにまとめます。注文確認などは混ぜません。' : state.view === 'archive' ? 'アーカイブしたメール。重要通知の分類からは外れています。' : state.view === 'trash' ? 'ゴミ箱へ移動したメール。' : '受信箱内のすべてのメール。';
+      listPane.innerHTML = `<div class="topbar"><h1>${esc(heading)}</h1><span class="status" id="updated">更新：${esc(state.updated)}</span></div><div class="search"><input id="search-input" type="search" placeholder="サンプル内を検索" value="${esc(state.query)}" aria-label="サンプル内を検索"><button class="btn" id="refresh">更新</button></div><div class="intro">${intro}</div>${chips}${stackTools}<div class="section-head"><span>${state.view === 'promotions' && !state.stack && !state.query ? '送信元スタック' : 'メール一覧'}</span><span>${state.view === 'promotions' && !state.stack && !state.query ? stacks.length : found.length}件</span></div>${state.view === 'promotions' && !state.stack && !state.query ? stackList : rows(found)}`;
+      document.getElementById('refresh').onclick = () => { state.updated = 'たった今'; document.getElementById('updated').textContent = '更新：たった今'; };
+      document.getElementById('search-input').oninput = e => { state.query = e.target.value; renderList(); document.getElementById('search-input').focus(); };
+      listPane.querySelectorAll('[data-category]').forEach(b => b.onclick = () => { state.category = b.dataset.category; state.selected = null; render(); });
+      listPane.querySelectorAll('[data-stack]').forEach(b => b.onclick = () => { state.stack = b.dataset.stack; state.selected = null; render(); });
+      listPane.querySelectorAll('[data-id]').forEach(b => b.onclick = () => { state.selected = Number(b.dataset.id); app.classList.add('show-detail'); render(); });
+      if (document.getElementById('stack-back')) document.getElementById('stack-back').onclick = () => { state.stack = ''; state.selected = null; render(); };
+      listPane.querySelectorAll('[data-bulk]').forEach(b => b.onclick = () => bulk(b.dataset.bulk));
+    }
+    function renderDetail() {
+      const m = items.find(x => x.id === state.selected);
+      if (!m) { detail.innerHTML = '<div class="detail-empty">メールを選ぶとここに本文が表示されます。<br>スマートフォンでは一覧から詳細へ移動します。</div>'; return; }
+      detail.innerHTML = `<div class="detail-head"><button class="back" id="back">← 戻る</button><h2>${esc(m.subject)}</h2></div><div class="detail-actions"><button class="btn" id="toggle-read">${m.unread ? '既読にする' : '未読にする'}</button>${m.inbox ? '<button class="btn" id="archive">アーカイブ</button>' : ''}<button class="btn" id="classify">分類を修正</button>${!m.trashed ? '<button class="btn danger" id="trash">ゴミ箱へ</button>' : ''}</div><div class="meta"><strong>${esc(m.from)}</strong> &lt;${esc(m.email)}&gt;<br>${esc(m.date)}${m.inbox ? '' : ' · アーカイブ済み'}<br>分類：${esc(m.category || '通常の受信')}</div><div class="body">${m.html}</div>`;
+      if (document.getElementById('back')) document.getElementById('back').onclick = () => app.classList.remove('show-detail');
+      document.getElementById('toggle-read').onclick = () => { m.unread = !m.unread; render(); };
+      if (document.getElementById('archive')) document.getElementById('archive').onclick = () => { m.inbox = false; state.selected = null; app.classList.remove('show-detail'); render(); };
+      document.getElementById('classify').onclick = () => openClassify(m);
+      if (document.getElementById('trash')) document.getElementById('trash').onclick = () => { if (confirm('この1通をゴミ箱へ移動しますか？')) { m.trashed = true; m.inbox = false; state.selected = null; app.classList.remove('show-detail'); render(); } };
+      detail.querySelectorAll('.remote-button').forEach(button => button.onclick = () => { button.parentElement.textContent = 'この画面案では画像の読み込みを行いません'; });
+    }
+    function bulk(action) {
+      const group = items.filter(m => m.email === state.stack && m.inbox && !m.trashed && m.category === 'プロモーション');
+      const target = action === 'read' ? group.filter(m => m.unread) : group;
+      const label = { read: '既読', archive: 'アーカイブ', trash: 'ゴミ箱へ移動' }[action];
+      if (!target.length) return alert('対象メールはありません。');
+      if (!confirm(`${state.stack} の受信箱内の ${target.length} 通をまとめて${label}しますか？`)) return;
+      target.forEach(m => { if (action === 'read') m.unread = false; if (action === 'archive') m.inbox = false; if (action === 'trash') { m.inbox = false; m.trashed = true; } });
+      state.selected = null; if (action !== 'read') state.stack = ''; render();
+    }
+    function openClassify(m) {
+      document.getElementById('classify-subject').textContent = `「${m.subject}」の分類を変更します。`;
+      document.getElementById('classify-category').innerHTML = ['通常の受信', ...categories, 'プロモーション'].map(c => `<option value="${esc(c)}" ${m.category === c ? 'selected' : ''}>${esc(c)}</option>`).join('');
+      dialog.showModal();
+      document.getElementById('classify-save').onclick = () => { const chosen = document.getElementById('classify-category').value; const scope = document.querySelector('input[name="scope"]:checked').value; m.category = chosen === '通常の受信' ? '' : chosen; dialog.close(); render(); if (scope === 'sender') alert('実装時には、送信元と追加条件を確認して今後のルールを保存します。'); };
+    }
+    document.getElementById('classify-cancel').onclick = () => dialog.close();
+    function render() { nav(); renderList(); renderDetail(); }
+    render();
+  </script>
+</body>
+</html>

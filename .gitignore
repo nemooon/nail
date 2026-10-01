@@ -1,0 +1,24 @@
+# Dependencies and generated files
+node_modules/
+dist/
+.cloudflare/
+*.tsbuildinfo
+.DS_Store
+*.log
+
+# Local secrets and Gmail data
+.env
+.env.*
+!.env.example
+.dev.vars*
+.oauth-client.json
+.oauth-token.json*
+.gmail-sync-state.json*
+.classifications.json*
+.classification-rules.json*
+*.sqlite
+*.sqlite3
+*.db
+
+# Local Gmail credentials and state
+.local/
