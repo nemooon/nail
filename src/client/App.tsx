@@ -2,6 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActionIcon, AppShell, Badge, Button, Divider, Group, Modal, Select, Stack, Switch, Text, TextInput, Title, Tooltip } from '@mantine/core';
 import { IconArchive, IconArrowLeft, IconBell, IconBrandGoogle, IconCheck, IconChevronRight, IconInbox, IconMail, IconMenu2, IconRefresh, IconSearch, IconSettings, IconTag, IconTrash, IconX } from '@tabler/icons-react';
 import { linkifyPlainText } from './plain-links';
+import { CardUsageRow } from './CardUsageRow';
+import { DeliveryRow } from './DeliveryRow';
+import { ShoppingRow } from './ShoppingRow';
+import { requesterByTracking, trackingKey, type DeliveryPreview } from './delivery-preview';
+import { orderKey, shoppingOrderNumbers, type ShoppingPreview } from './shopping-preview';
+import { clearPreviewCache } from './mail-preview-cache';
 
 type Mail = { id: string; threadId: string; from: string; subject: string; internalDate: string; unread: boolean; labelIds?: string[]; classification?: { category: Category; reason: string; source: string } };
 type Detail = { id: string; from: string; subject: string; date: string; html: string; text: string; css: string; imageCount: number };
@@ -53,9 +59,9 @@ function formatDate(ms: string) {
 }
 
 const views: { id: View; label: string; icon: typeof IconMail }[] = [
-  { id: 'inbox', label: '受信箱', icon: IconInbox },
   { id: 'important', label: '重要な通知', icon: IconBell },
   { id: 'promotions', label: 'プロモーション', icon: IconTag },
+  { id: 'inbox', label: 'すべてのメール', icon: IconInbox },
   { id: 'archive', label: 'アーカイブ', icon: IconArchive },
 ];
 
@@ -99,11 +105,15 @@ export default function App() {
   const [nextPage, setNextPage] = useState<string | null>(null);
   const [status, setStatus] = useState<Status>({ connected: false, canModify: false, lastSyncedAt: null });
   const [classifications, setClassifications] = useState<Record<string, Category>>({});
-  const [view, setView] = useState<View>('inbox');
+  const [view, setView] = useState<View>('important');
   const [categoryFilter, setCategoryFilter] = useState<Category | 'すべて'>('すべて');
   const [query, setQuery] = useState('');
   const [stack, setStack] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
+  const [highlightedDelivery, setHighlightedDelivery] = useState<string | null>(null);
+  const [highlightedShopping, setHighlightedShopping] = useState<string | null>(null);
+  const [deliveryPreviews, setDeliveryPreviews] = useState<Record<string, DeliveryPreview>>({});
+  const [shoppingPreviews, setShoppingPreviews] = useState<Record<string, ShoppingPreview>>({});
   const [detail, setDetail] = useState<Detail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [showImages, setShowImages] = useState(false);
@@ -219,10 +229,21 @@ export default function App() {
   const stackMails = promotions.filter(mail => sender(mail.from).email.toLowerCase() === stack);
   const visible = query.trim() || view === 'archive' ? remote : view === 'promotions' ? (stack ? stackMails : promotions) : view === 'important' ? important.filter(mail => categoryFilter === 'すべて' || categoryOf(mail) === categoryFilter) : inbox;
   const selectedMail = [...inbox, ...remote].find(mail => mail.id === selected) ?? null;
+  const selectedTracking = view === 'important' && highlightedDelivery ? trackingKey(deliveryPreviews[highlightedDelivery]?.trackingNumber ?? '') : undefined;
+  const shoppingNumbers = useMemo(() => shoppingOrderNumbers(shoppingPreviews, inbox), [shoppingPreviews, inbox]);
+  const selectedOrder = view === 'important' && highlightedShopping ? orderKey(shoppingNumbers[highlightedShopping] ?? '') : undefined;
+  const groupRequesters = useMemo(() => requesterByTracking(deliveryPreviews), [deliveryPreviews]);
   const showStacks = view === 'promotions' && !stack && !query.trim();
 
+  const rememberDeliveryPreview = useCallback((id: string, preview: DeliveryPreview) => {
+    setDeliveryPreviews(current => current[id] === preview ? current : { ...current, [id]: preview });
+  }, []);
+  const rememberShoppingPreview = useCallback((id: string, preview: ShoppingPreview) => {
+    setShoppingPreviews(current => current[id] === preview ? current : { ...current, [id]: preview });
+  }, []);
+
   function changeView(next: View) {
-    setView(next); setQuery(''); setStack(null); setCategoryFilter('すべて'); setSelected(null); setDetail(null); setNavOpen(false);
+    setView(next); setQuery(''); setStack(null); setCategoryFilter('すべて'); setSelected(null); setHighlightedDelivery(null); setHighlightedShopping(null); setDetail(null); setNavOpen(false);
     listRef.current?.scrollTo(0, 0);
   }
 
@@ -240,6 +261,8 @@ export default function App() {
 
   async function selectMail(mail: Mail) {
     const request = ++detailRequest.current;
+    setHighlightedDelivery(view === 'important' && categoryOf(mail) === '配送' ? mail.id : null);
+    setHighlightedShopping(view === 'important' && categoryOf(mail) === 'ショッピング' ? mail.id : null);
     setSelected(mail.id); setDetail(null); setShowImages(loadExternalImages); setDetailLoading(true);
     detailRef.current?.scrollTo(0, 0);
     try {
@@ -315,7 +338,7 @@ export default function App() {
       <div className="mobile-topbar"><ActionIcon variant="subtle" color="dark" aria-label="メニュー" onClick={() => setNavOpen(true)}><IconMenu2 /></ActionIcon><strong>nail</strong><span /></div>
       <div className="workspace">
         {view === 'settings' ? <section className="settings-page" aria-label="設定">
-          <div className="settings-page-inner"><Title order={1}>設定</Title><div className="settings-card"><div className="settings-card-heading"><IconMail size={18} stroke={1.8} /><strong>メールの表示</strong></div><Switch label="外部画像を自動で表示" description="HTML メールを開いたときに画像を読み込みます。オフにすると、メールごとに表示できます。" checked={loadExternalImages} onChange={event => changeImagePreference(event.currentTarget.checked)} /></div>{import.meta.env.MODE === 'production' && status.connected && <Button size="xs" variant="subtle" mt="md" onClick={async () => { await fetch('/auth/logout', { method: 'POST' }); location.reload(); }}>ログアウト</Button>}</div>
+          <div className="settings-page-inner"><Title order={1}>設定</Title><div className="settings-card"><div className="settings-card-heading"><IconMail size={18} stroke={1.8} /><strong>メールの表示</strong></div><Switch label="外部画像を自動で表示" description="HTML メールを開いたときに画像を読み込みます。オフにすると、メールごとに表示できます。" checked={loadExternalImages} onChange={event => changeImagePreference(event.currentTarget.checked)} /></div>{import.meta.env.MODE === 'production' && status.connected && <Button size="xs" variant="subtle" mt="md" onClick={async () => { await clearPreviewCache(); await fetch('/auth/logout', { method: 'POST' }); location.reload(); }}>ログアウト</Button>}</div>
         </section> : <>
         <section ref={listRef} className={`content-pane ${selectedMail ? 'detail-on-mobile' : ''}`} aria-label="メール一覧">
           <div className="content-head"><Title order={1}>{title}</Title><TextInput className="header-search" size="xs" leftSection={<IconSearch size={15} />} placeholder="Gmail を検索" aria-label="Gmail を検索" value={query} onChange={event => setQuery(event.currentTarget.value)} rightSection={query ? <ActionIcon size="sm" variant="subtle" color="gray" aria-label="検索を消去" onClick={() => setQuery('')}><IconX size={14} /></ActionIcon> : null} /><Text className="sync-label">更新 {updated}</Text><Tooltip label="新着を確認"><ActionIcon className="refresh-button" size="sm" radius="sm" variant="default" aria-label="更新" loading={refreshing} onClick={() => void refresh()}><IconRefresh size={16} /></ActionIcon></Tooltip></div>
@@ -324,7 +347,7 @@ export default function App() {
           {stack && !query && <div className="stack-toolbar"><Button variant="subtle" leftSection={<IconArrowLeft size={16} />} onClick={() => setStack(null)}>送信元に戻る</Button><div className="stack-actions"><Button size="xs" variant="light" disabled={!status.canModify || busy || !stackMails.length} onClick={() => setBulkAction('read')} leftSection={<IconCheck size={15} />}>{stackMails.length}通を既読</Button><Button size="xs" variant="light" disabled={!status.canModify || busy || !stackMails.length} onClick={() => setBulkAction('archive')} leftSection={<IconArchive size={15} />}>{stackMails.length}通をアーカイブ</Button><Button size="xs" color="red" variant="subtle" disabled={!status.canModify || busy || !stackMails.length} onClick={() => setBulkAction('trash')}>ゴミ箱へ</Button></div></div>}
           <div className="list-heading"><div><strong>{showStacks ? '送信元' : 'メール'}</strong><span>{showStacks ? stacks.length : visible.length}</span></div><Text size="xs">{view === 'archive' || query ? 'Gmail の検索結果' : '新しい順'}</Text></div>
           <div className="mail-list">
-            {showStacks ? stacks.map(([email, group]) => <button className="stack-row" key={email} onClick={() => { setStack(email); setSelected(null); }}><div className="stack-row-body"><strong>{sender(group[0].from).name}</strong><span>{group[0].subject}</span></div><Badge variant="light" color="indigo" radius="sm">{group.length}通</Badge><IconChevronRight size={17} className="chevron" /></button>) : visible.map(mail => <div key={mail.id} className={`mail-row ${selected === mail.id ? 'selected' : ''}`}><button className="mail-row-main" onClick={() => void selectMail(mail)}><span className={`unread-mark ${mail.unread ? 'on' : ''}`} /><span className="mail-row-content"><span className="mail-row-top"><span className={`sender ${mail.unread ? 'unread' : ''}`}>{sender(mail.from).name}</span><span className="mail-date">{formatDate(mail.internalDate)}</span></span><span className={`mail-subject ${mail.unread ? 'unread' : ''}`}>{mail.subject || '(件名なし)'}</span>{categoryOf(mail) !== 'その他' && <span className="mail-category">{categoryOf(mail)}</span>}</span></button>{status.canModify && mail.labelIds?.includes('INBOX') && <Tooltip label="アーカイブ"><ActionIcon className="row-archive" variant="subtle" color="gray" aria-label={`${mail.subject}をアーカイブ`} disabled={busy} onClick={() => void act(mail.id, 'archive')}><IconArchive size={18} /></ActionIcon></Tooltip>}</div>)}
+            {showStacks ? stacks.map(([email, group]) => <button className="stack-row" key={email} onClick={() => { setStack(email); setSelected(null); }}><div className="stack-row-body"><strong>{sender(group[0].from).name}</strong><span>{group[0].subject}</span></div><Badge variant="light" color="indigo" radius="sm">{group.length}通</Badge><IconChevronRight size={17} className="chevron" /></button>) : visible.map(mail => <div key={mail.id} className={`mail-row ${selected === mail.id ? 'selected' : ''} ${selected !== mail.id && ((selectedTracking && trackingKey(deliveryPreviews[mail.id]?.trackingNumber ?? '') === selectedTracking) || (selectedOrder && orderKey(shoppingNumbers[mail.id] ?? '') === selectedOrder)) ? 'related' : ''}`}><button className="mail-row-main" onClick={() => void selectMail(mail)}><span className={`unread-mark ${mail.unread ? 'on' : ''}`} />{view === 'important' && !query.trim() && categoryOf(mail) === 'カード利用' ? <CardUsageRow mail={mail} senderName={sender(mail.from).name} receivedDate={formatDate(mail.internalDate)} load={() => api<Detail>(`/messages/${encodeURIComponent(mail.id)}`)} /> : view === 'important' && !query.trim() && categoryOf(mail) === '配送' ? <DeliveryRow mail={mail} senderName={sender(mail.from).name} receivedDate={formatDate(mail.internalDate)} load={() => api<Detail>(`/messages/${encodeURIComponent(mail.id)}`)} onPreview={rememberDeliveryPreview} relatedRequester={groupRequesters[trackingKey(deliveryPreviews[mail.id]?.trackingNumber ?? '')]} /> : view === 'important' && !query.trim() && categoryOf(mail) === 'ショッピング' ? <ShoppingRow mail={mail} senderName={sender(mail.from).name} receivedDate={formatDate(mail.internalDate)} load={() => api<Detail>(`/messages/${encodeURIComponent(mail.id)}`)} onPreview={rememberShoppingPreview} resolvedOrderNumber={shoppingNumbers[mail.id]} /> : <span className="mail-row-content"><span className="mail-row-top"><span className={`sender ${mail.unread ? 'unread' : ''}`}>{sender(mail.from).name}</span><span className="mail-date">{formatDate(mail.internalDate)}</span></span><span className={`mail-subject ${mail.unread ? 'unread' : ''}`}>{mail.subject || '(件名なし)'}</span>{categoryOf(mail) !== 'その他' && <span className="mail-category">{categoryOf(mail)}</span>}</span>}</button>{status.canModify && mail.labelIds?.includes('INBOX') && <Tooltip label="アーカイブ"><ActionIcon className="row-archive" variant="subtle" color="gray" aria-label={`${mail.subject}をアーカイブ`} disabled={busy} onClick={() => void act(mail.id, 'archive')}><IconArchive size={18} /></ActionIcon></Tooltip>}</div>)}
             {!loading && !showStacks && visible.length === 0 && <div className="empty-state"><IconInbox size={28} stroke={1.4} /><strong>該当するメールはありません</strong><span>{view === 'important' ? 'メール詳細から分類を設定できます。' : query || view === 'archive' ? '検索条件を変えてみてください。' : !status.connected ? 'ログインするとメールを表示します。' : '受信箱は空です。'}</span></div>}
             {loading && <div className="empty-state"><strong>メールを読み込み中</strong></div>}
           </div>

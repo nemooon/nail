@@ -4,12 +4,12 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "node scripts/dev.mjs",
+    "dev": "node scripts/dev.mjs --host 0.0.0.0",
     "dev:api": "node src/local/index.ts",
     "dev:ui": "vite --mode standalone --host 127.0.0.1",
     "build": "tsc --noEmit && tsc -p tsconfig.server.json && vite build --mode standalone",
     "build:live": "cf build && tsc --noEmit && tsc -p tsconfig.worker.json",
-    "deploy:live": "npm run build:live && cf deploy --prebuilt",
+    "deploy:live": "npm run build:live && cf deploy --prebuilt --mode production",
     "auth": "node scripts/auth.ts",
     "sync": "node scripts/sync.ts",
     "test": "node --test src/client/*.test.ts src/gmail/*.test.ts src/local/*.test.ts src/worker/*.test.ts"

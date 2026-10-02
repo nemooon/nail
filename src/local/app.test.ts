@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
+import { networkInterfaces } from 'node:os'
 import app, { extractBody } from './app.ts'
 
 test('HTML mail removes active content and external images', () => {
@@ -24,6 +25,21 @@ test('local API rejects non-local hosts and foreign write origins', async () => 
     method: 'POST', headers: { Host: '127.0.0.1:8767', Origin: 'https://evil.example', 'Content-Type': 'application/json' }, body: '{}',
   }))
   assert.equal(foreignOrigin.status, 403)
+})
+
+test('local API accepts development origins on this machine only on the Vite port', async () => {
+  const hosts = ['localhost', '127.0.0.1', ...Object.values(networkInterfaces()).flatMap(entries =>
+    (entries ?? []).filter(entry => !entry.address.includes('%')).map(entry =>
+      entry.family === 'IPv6' ? `[${entry.address}]` : entry.address))]
+  for (const host of hosts) {
+    for (const port of [5173, 5174]) {
+      const response = await app.request(new Request('http://127.0.0.1:8767/api/messages/a/classification', {
+        method: 'PUT', headers: { Host: '127.0.0.1:8767', Origin: `http://${host}:${port}`, 'Content-Type': 'application/json' }, body: '{}',
+      }))
+      assert.equal(response.status, port === 5173 ? 400 : 403)
+      assert.deepEqual(await response.json(), { error: port === 5173 ? 'Invalid category' : 'Invalid origin' })
+    }
+  }
 })
 
 test('decoded Gmail UTF-8 body takes precedence over a stale ISO-2022-JP MIME header', () => {

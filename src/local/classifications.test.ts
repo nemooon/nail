@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import type { Message } from '../gmail/gmail.ts'
 import { classify } from './classifications.ts'
+import { classify as classifyWorker } from '../worker/classification.ts'
 
 function mail(subject: string, labelIds: string[] = []): Message {
   return { id: 'm1', threadId: 't1', from: 'Store <news@example.test>', subject, internalDate: '2000', unread: true, labelIds }
@@ -29,4 +30,17 @@ test('manual correction and future sender rules have precedence', () => {
   assert.equal(classify(message, { m1: 'その他' }, rules).category, 'その他')
   assert.equal(classify({ ...message, internalDate: '1000' }, {}, rules).category, 'その他')
   assert.equal(classify({ ...message, subject: '別の件名' }, {}, rules).category, 'その他')
+})
+
+test('Monotaro and Temu shipping notices are shopping in local and Worker classification', () => {
+  for (const classifyMessage of [classify, classifyWorker]) {
+    for (const from of ['モノタロウ <dispatch@monotaro.com>', 'Temu <notice@temu.com>', 'Temu <notice@delivery.example>']) {
+      const message = { ...mail('お荷物のお届け予定です'), from }
+      assert.equal(classifyMessage(message).category, 'ショッピング')
+      assert.equal(classifyMessage(message, { m1: '配送' }).category, '配送')
+      assert.equal(classifyMessage(message, {}, [{ email: from.match(/<(.+)>/)![1], category: '配送', after: 1000 }]).category, '配送')
+    }
+    assert.equal(classifyMessage({ ...mail('お荷物のお届け予定です'), from: '配送会社 <notice@carrier.example>' }).category, '配送')
+    assert.equal(classifyMessage({ ...mail('本日限定セール'), from: 'Temu <news@temu.com>' }).category, 'プロモーション')
+  }
 })

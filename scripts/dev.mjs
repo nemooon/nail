@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process'
 
 const processes = [
   spawn(process.execPath, ['src/local/index.ts'], { stdio: 'inherit' }),
-  spawn(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['run', 'dev:ui'], { stdio: 'inherit' }),
+  spawn(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['run', 'dev:ui', '--', ...process.argv.slice(2)], { stdio: 'inherit' }),
 ]
 
 function stop() {

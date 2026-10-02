@@ -21,6 +21,11 @@ const subjectRules: { category: Category; pattern: RegExp; reason: string }[] = 
 ]
 const promotionPattern = /クーポン|セール|キャンペーン|割引|特典|おすすめ|オススメ|ポイント.{0,5}(?:還元|アップ)|(?:\d+%|\d+％)\s*(?:off|オフ)|本日限定|期間限定/i
 
+function isStoreShippingNotice(from: string, email: string): boolean {
+  const domain = email.split('@')[1] ?? ''
+  return /(?:^|\.)(?:monotaro|temu)\.com$/i.test(domain) || /^\s*"?Temu\b/i.test(from.split('<')[0])
+}
+
 export function classify(message: Message, overrides: Classifications = {}, rules: SenderRule[] = []): Classification {
   const manual = overrides[message.id]
   if (manual) return { category: manual, reason: 'このメールに設定した分類', source: 'manual' }
@@ -30,10 +35,14 @@ export function classify(message: Message, overrides: Classifications = {}, rule
   const matchingRule = [...rules].reverse().find(rule => rule.email === email && timestamp > rule.after && (!rule.subjectContains || subject.toLowerCase().includes(rule.subjectContains.normalize('NFKC').toLowerCase())))
   if (matchingRule) return { category: matchingRule.category, reason: matchingRule.subjectContains ? `送信元と件名「${matchingRule.subjectContains}」のルール` : '送信元に設定した今後のルール', source: 'sender-rule' }
   for (const rule of subjectRules) {
-    if (rule.pattern.test(subject)) return { category: rule.category, reason: rule.reason, source: 'subject' }
+    if (rule.pattern.test(subject)) {
+      if (rule.category === '配送' && isStoreShippingNotice(message.from, email)) {
+        return { category: 'ショッピング', reason: 'ショップからの発送・配送通知', source: 'subject' }
+      }
+      return { category: rule.category, reason: rule.reason, source: 'subject' }
+    }
   }
   if (promotionPattern.test(subject)) return { category: 'プロモーション', reason: '件名に広告・特典を示す語があります', source: 'subject' }
   if (message.labelIds?.includes('CATEGORY_PROMOTIONS')) return { category: 'プロモーション', reason: 'Gmail のプロモーション分類', source: 'gmail' }
   return { category: 'その他', reason: '明確な分類条件が見つかりません', source: 'unknown' }
 }
-

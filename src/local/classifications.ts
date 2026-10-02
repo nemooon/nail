@@ -1,12 +1,17 @@
-import { readFile, rename, writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import type { Message } from '../gmail/gmail.ts'
+import { openClassificationDb } from './classification-db.ts'
 
 export const categories = ['カード利用', '配送', 'ショッピング', '契約・サブスク', '予約', 'プロモーション', 'その他'] as const
 export type Category = typeof categories[number]
 export type Classifications = Record<string, Category>
 const path = resolve(import.meta.dirname, '../../.local/.classifications.json')
 const rulesPath = resolve(import.meta.dirname, '../../.local/.classification-rules.json')
+const dbPath = resolve(import.meta.dirname, '../../.local/nail.sqlite')
+let database: ReturnType<typeof openClassificationDb> | undefined
+function classificationDb() {
+  return database ??= openClassificationDb(dbPath, path, rulesPath)
+}
 
 export type Classification = { category: Category; reason: string; source: 'manual' | 'sender-rule' | 'subject' | 'gmail' | 'unknown' }
 export type SenderRule = { email: string; category: Category; subjectContains?: string; after: number }
@@ -25,6 +30,11 @@ const subjectRules: { category: Category; pattern: RegExp; reason: string }[] = 
 ]
 const promotionPattern = /クーポン|セール|キャンペーン|割引|特典|おすすめ|オススメ|ポイント.{0,5}(?:還元|アップ)|(?:\d+%|\d+％)\s*(?:off|オフ)|本日限定|期間限定/i
 
+function isStoreShippingNotice(from: string, email: string): boolean {
+  const domain = email.split('@')[1] ?? ''
+  return /(?:^|\.)(?:monotaro|temu)\.com$/i.test(domain) || /^\s*"?Temu\b/i.test(from.split('<')[0])
+}
+
 export function classify(message: Message, overrides: Classifications = {}, rules: SenderRule[] = []): Classification {
   const manual = overrides[message.id]
   if (manual) return { category: manual, reason: 'このメールに設定した分類', source: 'manual' }
@@ -34,7 +44,12 @@ export function classify(message: Message, overrides: Classifications = {}, rule
   const matchingRule = [...rules].reverse().find(rule => rule.email === email && timestamp > rule.after && (!rule.subjectContains || subject.toLowerCase().includes(rule.subjectContains.normalize('NFKC').toLowerCase())))
   if (matchingRule) return { category: matchingRule.category, reason: matchingRule.subjectContains ? `送信元と件名「${matchingRule.subjectContains}」のルール` : '送信元に設定した今後のルール', source: 'sender-rule' }
   for (const rule of subjectRules) {
-    if (rule.pattern.test(subject)) return { category: rule.category, reason: rule.reason, source: 'subject' }
+    if (rule.pattern.test(subject)) {
+      if (rule.category === '配送' && isStoreShippingNotice(message.from, email)) {
+        return { category: 'ショッピング', reason: 'ショップからの発送・配送通知', source: 'subject' }
+      }
+      return { category: rule.category, reason: rule.reason, source: 'subject' }
+    }
   }
   if (promotionPattern.test(subject)) return { category: 'プロモーション', reason: '件名に広告・特典を示す語があります', source: 'subject' }
   if (message.labelIds?.includes('CATEGORY_PROMOTIONS')) return { category: 'プロモーション', reason: 'Gmail のプロモーション分類', source: 'gmail' }
@@ -42,34 +57,17 @@ export function classify(message: Message, overrides: Classifications = {}, rule
 }
 
 export async function readClassifications(): Promise<Classifications> {
-  try { return JSON.parse(await readFile(path, 'utf8')) as Classifications }
-  catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return {}
-    throw error
-  }
+  return classificationDb().readClassifications()
 }
 
 export async function setClassification(id: string, category: Category): Promise<Classifications> {
-  const current = await readClassifications()
-  current[id] = category
-  const temporary = `${path}.tmp`
-  await writeFile(temporary, JSON.stringify(current), { mode: 0o600 })
-  await rename(temporary, path)
-  return current
+  return classificationDb().setClassification(id, category)
 }
 
 export async function readSenderRules(): Promise<SenderRule[]> {
-  try { return JSON.parse(await readFile(rulesPath, 'utf8')) as SenderRule[] }
-  catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return []
-    throw error
-  }
+  return classificationDb().readSenderRules()
 }
 
 export async function addSenderRule(rule: SenderRule): Promise<void> {
-  const current = await readSenderRules()
-  current.push(rule)
-  const temporary = `${rulesPath}.tmp`
-  await writeFile(temporary, JSON.stringify(current), { mode: 0o600 })
-  await rename(temporary, rulesPath)
+  classificationDb().addSenderRule(rule)
 }

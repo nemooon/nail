@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import sanitizeHtml from 'sanitize-html'
 import postcss from 'postcss'
 import { stat } from 'node:fs/promises'
+import { networkInterfaces } from 'node:os'
 import { GmailClient, GmailError, type Message, type RawMessage, type RawPart } from '../gmail/gmail.ts'
 import { getAccessToken, MODIFY_SCOPE, readToken, verifyOwner } from './oauth.ts'
 import { store, statePath } from './local-store.ts'
@@ -12,6 +13,13 @@ const app = new Hono()
 const idPattern = /^[a-zA-Z0-9_-]+$/
 let activeSync: Promise<void> | null = null
 
+function allowedDevOrigins() {
+  const hosts = ['localhost', '127.0.0.1', ...Object.values(networkInterfaces()).flatMap(entries =>
+    (entries ?? []).filter(entry => !entry.address.includes('%')).map(entry =>
+      entry.family === 'IPv6' ? `[${entry.address}]` : entry.address))]
+  return new Set(hosts.map(host => `http://${host}:5173`))
+}
+
 app.use('/api/*', async (c, next) => {
   c.header('Cache-Control', 'no-store')
   c.header('X-Content-Type-Options', 'nosniff')
@@ -19,7 +27,7 @@ app.use('/api/*', async (c, next) => {
   if (!['127.0.0.1:8767', 'localhost:8767'].includes(host)) return c.json({ error: 'Local access only' }, 403)
   if (c.req.method !== 'GET') {
     const origin = c.req.header('origin')
-    if (origin && !['http://127.0.0.1:5173', 'http://localhost:5173'].includes(origin)) {
+    if (origin && !allowedDevOrigins().has(origin)) {
       return c.json({ error: 'Invalid origin' }, 403)
     }
     if (!c.req.header('content-type')?.startsWith('application/json')) return c.json({ error: 'JSON required' }, 415)

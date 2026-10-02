@@ -68,6 +68,8 @@ button { cursor: pointer; }
 .mail-row:last-child, .stack-row:last-child { border-bottom: 0; }
 .mail-row:hover { background: #fafbff; }
 .mail-row.selected { background: #f5f7ff; }
+.mail-row.related { background: #eef5ff; box-shadow: inset 3px 0 #7296dc; }
+.mail-row.related:hover { background: #e8f1ff; }
 .mail-row-main { border: 0; width: 100%; min-width: 0; display: flex; text-align: left; align-items: flex-start; gap: 8px; background: transparent; padding: 8px 37px 8px 10px; color: inherit; }
 .unread-mark { width: 6px; height: 6px; border-radius: 50%; margin-top: 6px; flex: 0 0 6px; }
 .unread-mark.on { background: #536be4; box-shadow: 0 0 0 3px #edf0ff; }
@@ -79,6 +81,38 @@ button { cursor: pointer; }
 .mail-subject { grid-column: 1; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 550; color: #464e61; }
 .mail-subject.unread { color: #22283d; font-weight: 760; }
 .mail-category { grid-column: 2; grid-row: 2; align-self: center; display: inline-block; padding: 0 5px; color: #6b79ad; background: #f0f2fb; border-radius: 3px; font-size: 9px; font-weight: 700; white-space: nowrap; }
+.card-usage-list { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.card-usage-header { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; line-height: 18px; }
+.card-usage { flex: 1; min-width: 0; display: grid; grid-template-columns: 5ch minmax(0, 1fr) minmax(8ch, auto); gap: 0 8px; line-height: 18px; font-size: 10px; }
+.card-usage-identity { min-width: 0; display: flex; align-items: center; gap: 5px; }
+.card-usage-name, .card-usage-content { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.card-usage-name { font-size: 12px; font-weight: 650; }
+.card-usage-brand { flex-shrink: 0; max-width: 85px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 4px; border-radius: 3px; background: #edf1fb; color: #4f6098; font-size: 9px; font-weight: 750; }
+.card-usage-date { font-size: 10px; color: #7b8495; text-align: left; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.card-usage-content { font-size: 12px; color: #596276; }
+.card-usage-amount { font-size: 14px; font-weight: 750; color: #27395d; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.card-usage-amount.unknown { font-size: 10px; color: #8a92a2; font-weight: 500; }
+.card-usage-list.unread .card-usage-name, .card-usage-list.unread .card-usage-content { color: #22283d; font-weight: 750; }
+.delivery-preview { flex: 1; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 8px; row-gap: 2px; line-height: 18px; }
+.delivery-sender, .delivery-requester, .delivery-tracking { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.delivery-sender { font-size: 12px; font-weight: 650; color: #454d60; }
+.delivery-sender.unread { color: #22283d; font-weight: 800; }
+.delivery-details { grid-column: 1 / -1; min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 8px; white-space: nowrap; }
+.delivery-summary { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 6px; }
+.delivery-requester { flex: 1; color: #454d60; font-size: 11px; font-weight: 650; }
+.delivery-tracking { flex: 0 1 auto; margin-left: auto; padding: 0 6px; border: 1px solid #dce5f6; border-radius: 5px; background: #f0f5ff; font-size: 11px; font-weight: 700; color: #425b90; font-variant-numeric: tabular-nums; }
+.delivery-tracking small { color: #8a92a2; font-size: 10px; font-weight: 500; }
+.delivery-date { flex: 0 0 auto; color: #5265a2; font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.delivery-status { flex: 0 0 auto; color: #5265a2; font-size: 11px; font-weight: 700; }
+@media (max-width: 540px) { .delivery-tracking small { display: none; } .delivery-summary { gap: 4px; } .delivery-date, .delivery-status { font-size: 10px; } }
+.shopping-preview { flex: 1; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 8px; row-gap: 2px; line-height: 18px; }
+.shopping-sender, .shopping-subject, .shopping-order { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.shopping-sender { font-size: 12px; font-weight: 650; color: #454d60; }
+.shopping-sender.unread, .shopping-subject.unread { color: #22283d; font-weight: 800; }
+.shopping-subject { color: #464e61; font-size: 12px; font-weight: 550; }
+.shopping-order { justify-self: end; max-width: 180px; padding: 0 6px; border: 1px solid #dce5f6; border-radius: 5px; background: #f0f5ff; color: #425b90; font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.shopping-order small { color: #8a92a2; font-size: 10px; font-weight: 500; }
+@media (max-width: 540px) { .shopping-order small { display: none; } .shopping-order { max-width: 45vw; } }
 .row-archive { position: absolute; top: 12px; right: 8px; opacity: 0; }
 .mail-row:hover .row-archive, .row-archive:focus-visible { opacity: 1; }
 .stack-row { width: 100%; border: 0; border-bottom: 1px solid #f0f1f5; padding: 10px; display: flex; align-items: center; gap: 8px; background: #fff; text-align: left; }
